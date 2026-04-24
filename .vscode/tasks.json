@@ -1,0 +1,382 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "memory.note",
+      "type": "promptString",
+      "description": "Note / Decision message"
+    },
+    {
+      "id": "memory.focus.title",
+      "type": "promptString",
+      "description": "Focus title (current goal)"
+    },
+    {
+      "id": "memory.focus.details",
+      "type": "promptString",
+      "description": "Optional details",
+      "default": ""
+    },
+    {
+      "id": "memory.task.title",
+      "type": "promptString",
+      "description": "Task title"
+    },
+    {
+      "id": "memory.task.priority",
+      "type": "pickString",
+      "description": "Task priority",
+      "options": [
+        "high",
+        "med",
+        "low"
+      ],
+      "default": "med"
+    },
+    {
+      "id": "memory.task.id",
+      "type": "promptString",
+      "description": "Task id to update"
+    },
+    {
+      "id": "memory.task.status",
+      "type": "pickString",
+      "description": "Task status",
+      "options": [
+        "todo",
+        "in-progress",
+        "done",
+        "blocked"
+      ],
+      "default": "in-progress"
+    },
+    {
+      "id": "memory.progress.summary",
+      "type": "promptString",
+      "description": "Progress summary"
+    },
+    {
+      "id": "memory.progress.files",
+      "type": "promptString",
+      "description": "Files touched (comma-separated)",
+      "default": ""
+    },
+    {
+      "id": "memory.progress.next",
+      "type": "promptString",
+      "description": "Next step",
+      "default": ""
+    },
+    {
+      "id": "memory.session.summary",
+      "type": "promptString",
+      "description": "Session summary (cached by default, not formal progress)"
+    },
+    {
+      "id": "memory.session.path",
+      "type": "promptString",
+      "description": "Session file path (optional, leave empty for latest)",
+      "default": ""
+    },
+    {
+      "id": "memory.session.cache.summary",
+      "type": "promptString",
+      "description": "Cache summary (optional, default auto)",
+      "default": ""
+    },
+    {
+      "id": "memory.session.watch.interval",
+      "type": "promptString",
+      "description": "Watch interval seconds",
+      "default": "300"
+    },
+    {
+      "id": "memory.prune.keep_progress",
+      "type": "promptString",
+      "description": "Keep latest N progress entries",
+      "default": "30"
+    },
+    {
+      "id": "memory.prune.keep_decisions",
+      "type": "promptString",
+      "description": "Keep latest N decision entries",
+      "default": "20"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Memory: Add Note",
+      "type": "shell",
+      "command": "scripts/memory/note",
+      "args": [
+        "${input:memory.note}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/note.ps1",
+          "${input:memory.note}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Add Decision",
+      "type": "shell",
+      "command": "scripts/memory/note",
+      "args": [
+        "${input:memory.note}",
+        "--decision"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/note.ps1",
+          "${input:memory.note}",
+          "-Decision"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Set Focus",
+      "type": "shell",
+      "command": "scripts/memory/focus",
+      "args": [
+        "${input:memory.focus.title}",
+        "-d",
+        "${input:memory.focus.details}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/focus.ps1",
+          "${input:memory.focus.title}",
+          "-Details",
+          "${input:memory.focus.details}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Add Task",
+      "type": "shell",
+      "command": "scripts/memory/task",
+      "args": [
+        "${input:memory.task.title}",
+        "-p",
+        "${input:memory.task.priority}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/task.ps1",
+          "${input:memory.task.title}",
+          "-Priority",
+          "${input:memory.task.priority}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Update Task Status",
+      "type": "shell",
+      "command": "scripts/memory/task",
+      "args": [
+        "--id",
+        "${input:memory.task.id}",
+        "--status",
+        "${input:memory.task.status}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/task.ps1",
+          "-Id",
+          "${input:memory.task.id}",
+          "-Status",
+          "${input:memory.task.status}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Log Progress",
+      "type": "shell",
+      "command": "scripts/memory/progress",
+      "args": [
+        "${input:memory.progress.summary}",
+        "--files",
+        "${input:memory.progress.files}",
+        "--next",
+        "${input:memory.progress.next}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/progress.ps1",
+          "${input:memory.progress.summary}",
+          "-Files",
+          "${input:memory.progress.files}",
+          "-Next",
+          "${input:memory.progress.next}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Cache Session Log",
+      "type": "shell",
+      "command": "scripts/memory/session-log",
+      "args": [
+        "${input:memory.session.summary}",
+        "--session",
+        "${input:memory.session.path}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/session-log.ps1",
+          "${input:memory.session.summary}",
+          "-SessionPath",
+          "${input:memory.session.path}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Cache Latest Session",
+      "type": "shell",
+      "command": "scripts/memory/session-cache",
+      "args": [
+        "--summary",
+        "${input:memory.session.cache.summary}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/session-cache.ps1",
+          "-Summary",
+          "${input:memory.session.cache.summary}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Start Session Watch",
+      "type": "shell",
+      "command": "scripts/memory/session-watch",
+      "args": [
+        "--interval",
+        "${input:memory.session.watch.interval}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/session-watch.ps1",
+          "-IntervalSeconds",
+          "${input:memory.session.watch.interval}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Promote Session Cache",
+      "type": "shell",
+      "command": "scripts/memory/session-merge",
+      "args": [
+        "--promote"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/session-merge.ps1",
+          "-Promote"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Refresh Brief",
+      "type": "shell",
+      "command": "scripts/memory/brief-refresh",
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/brief-refresh.ps1"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Prune (Archive Old)",
+      "type": "shell",
+      "command": "scripts/memory/prune",
+      "args": [
+        "--keep-progress",
+        "${input:memory.prune.keep_progress}",
+        "--keep-decisions",
+        "${input:memory.prune.keep_decisions}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/prune.ps1",
+          "-KeepProgress",
+          "${input:memory.prune.keep_progress}",
+          "-KeepDecisions",
+          "${input:memory.prune.keep_decisions}"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/common.sh"
+ensure_files
+
+SUMMARY="自动捕获（未摘要）"
+SESSION_PATH=""
+CACHE_FILE="$MEM_DIR/.session-cache.md"
+SESSION_ROOT="${CODEX_SESSION_DIR:-$HOME/.codex/sessions}"
+
+if [ "$#" -eq 0 ]; then
+  : # allow no args
+fi
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --summary) SUMMARY="${2-}"; shift 2;;
+    --session) SESSION_PATH="${2-}"; shift 2;;
+    --cache) CACHE_FILE="${2-}"; shift 2;;
+    --session-dir) SESSION_ROOT="${2-}"; shift 2;;
+    *) echo "Unknown arg: $1" >&2; exit 1;;
+  esac
+done
+
+if [ -z "$SUMMARY" ]; then
+  SUMMARY="自动捕获（未摘要）"
+fi
+
+if [ -z "$SESSION_PATH" ]; then
+  if [ ! -d "$SESSION_ROOT" ]; then
+    echo "Session directory not found: $SESSION_ROOT" >&2
+    exit 1
+  fi
+  SESSION_PATH="$(find "$SESSION_ROOT" -type f -name "*.jsonl" -print0 | xargs -0 ls -1t 2>/dev/null | head -n1 || true)"
+  if [ -z "$SESSION_PATH" ]; then
+    echo "No session files (*.jsonl) found under $SESSION_ROOT" >&2
+    exit 1
+  fi
+fi
+
+STAMP="$(ts)"
+touch "$CACHE_FILE"
+
+{
+  echo "- 时间：$STAMP"
+  echo "  - 摘要：$SUMMARY"
+  echo "  - Codex 会话：$SESSION_PATH"
+} >> "$CACHE_FILE"
+
+echo "Cached session log to $CACHE_FILE"

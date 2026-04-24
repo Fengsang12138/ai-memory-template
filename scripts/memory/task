@@ -1,0 +1,54 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/common.sh"
+ensure_files
+PYTHON_BIN=$(python_bin)
+
+usage() {
+  echo "Usage:" >&2
+  echo "  scripts/memory/task \"title\" [-p high|med|low] [--owner name]" >&2
+  echo "  scripts/memory/task update TASK_ID --status todo|in-progress|done|blocked" >&2
+  echo "  scripts/memory/task --id TASK_ID --status todo|in-progress|done|blocked" >&2
+}
+
+if [ "$#" -lt 1 ]; then
+  usage
+  exit 1
+fi
+
+FILE="$MEM_DIR/tasks.md"
+
+if [ "$1" = "update" ]; then
+  shift
+  "$PYTHON_BIN" "$SCRIPT_DIR/task_update.py" --file "$FILE" update "$@"
+  "$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+  echo "Updated $FILE (+ refreshed brief.md)"
+  exit 0
+fi
+
+if [ "$1" = "--id" ] || [ "$1" = "-i" ]; then
+  TASK_ID_VALUE="${2-}"
+  shift 2 || true
+  "$PYTHON_BIN" "$SCRIPT_DIR/task_update.py" --file "$FILE" update --id "$TASK_ID_VALUE" "$@"
+  "$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+  echo "Updated $FILE (+ refreshed brief.md)"
+  exit 0
+fi
+
+TITLE="$1"; shift || true
+PRIO="med"
+OWNER="unassigned"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -p|--priority) PRIO="${2-}"; shift 2;;
+    --owner) OWNER="${2-}"; shift 2;;
+    *) echo "Unknown arg: $1" >&2; exit 1;;
+  esac
+done
+
+"$PYTHON_BIN" "$SCRIPT_DIR/task_update.py" --file "$FILE" add --title "$TITLE" --priority "$PRIO" --owner "$OWNER"
+
+"$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+echo "Updated $FILE (+ refreshed brief.md)"

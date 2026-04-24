@@ -1,0 +1,71 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/common.sh"
+ensure_files
+PYTHON_BIN=$(python_bin)
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: scripts/memory/progress \"summary\" [--files \"a,b,c\"] [--next \"next step\"]" >&2
+  exit 1
+fi
+
+SUMMARY="$1"; shift || true
+FILES_TOUCHED=""
+NEXT=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --files) FILES_TOUCHED="${2-}"; shift 2;;
+    --next) NEXT="${2-}"; shift 2;;
+    *) echo "Unknown arg: $1" >&2; exit 1;;
+  esac
+done
+
+STAMP="$(ts)"
+FILE="$MEM_DIR/progress.md"
+
+ENTRY="$(
+  {
+    echo "- 时间：$STAMP"
+    echo "  - 摘要：$SUMMARY"
+    if [ -n "$FILES_TOUCHED" ]; then
+      echo "  - 涉及文件：$FILES_TOUCHED"
+    fi
+    if [ -n "$NEXT" ]; then
+      echo "  - 下一步建议：$NEXT"
+    fi
+  } | sed 's/[[:space:]]*$//'
+)"
+
+MEM_ENTRY="$ENTRY" "$PYTHON_BIN" - "$FILE" <<'PY'
+import re
+import sys
+import os
+from pathlib import Path
+
+path = Path(sys.argv[1])
+entry = os.environ.get("MEM_ENTRY", "").rstrip("\n")
+text = ""
+if path.exists():
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+lines = text.splitlines()
+insert_at = None
+for i, line in enumerate(lines):
+    if re.match(r"^##\s+记录", line.strip()):
+        insert_at = i + 1
+        break
+
+if insert_at is None:
+    new_text = text.rstrip("\n") + ("\n\n" if text.strip() else "") + entry + "\n"
+else:
+    before = "\n".join(lines[:insert_at]).rstrip("\n")
+    after = "\n".join(lines[insert_at:]).lstrip("\n")
+    new_text = before + "\n\n" + entry + "\n\n" + after + ("\n" if after else "")
+
+path.write_text(new_text, encoding="utf-8")
+PY
+
+"$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+echo "Updated $FILE (+ refreshed brief.md)"

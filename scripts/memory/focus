@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/common.sh"
+ensure_files
+PYTHON_BIN=$(python_bin)
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: scripts/memory/focus \"title\" [-d \"details\"]" >&2
+  exit 1
+fi
+
+TITLE="$1"; shift || true
+DETAILS=""
+if [ "${1-}" = "-d" ]; then
+  DETAILS="${2-}"; shift 2 || true
+fi
+
+FILE="$MEM_DIR/activeContext.md"
+
+if [ -n "$DETAILS" ]; then
+  "$PYTHON_BIN" "$SCRIPT_DIR/update_active_context.py" --file "$FILE" --title "$TITLE" --details "$DETAILS"
+else
+  "$PYTHON_BIN" "$SCRIPT_DIR/update_active_context.py" --file "$FILE" --title "$TITLE"
+fi
+
+"$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+echo "Updated $FILE (+ refreshed brief.md)"

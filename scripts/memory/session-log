@@ -1,0 +1,65 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/common.sh"
+ensure_files
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: scripts/memory/session-log \"summary\" [--session \"/path/to/session.jsonl\"] [--next \"next step\"] [--cache \"memory/.session-cache.md\"] [--promote]" >&2
+  exit 1
+fi
+
+SUMMARY="$1"; shift || true
+SESSION_PATH=""
+NEXT=""
+CACHE_FILE="$MEM_DIR/.session-cache.md"
+PROMOTE="false"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --session) SESSION_PATH="${2-}"; shift 2;;
+    --next) NEXT="${2-}"; shift 2;;
+    --cache) CACHE_FILE="${2-}"; shift 2;;
+    --promote) PROMOTE="true"; shift;;
+    *) echo "Unknown arg: $1" >&2; exit 1;;
+  esac
+done
+
+SESSION_ROOT="${CODEX_SESSION_DIR:-$HOME/.codex/sessions}"
+
+if [ -z "$SESSION_PATH" ]; then
+  if [ ! -d "$SESSION_ROOT" ]; then
+    echo "Session directory not found: $SESSION_ROOT" >&2
+    exit 1
+  fi
+  SESSION_PATH="$(find "$SESSION_ROOT" -type f -name "*.jsonl" -print0 | xargs -0 ls -1t 2>/dev/null | head -n1 || true)"
+  if [ -z "$SESSION_PATH" ]; then
+    echo "No session files (*.jsonl) found under $SESSION_ROOT" >&2
+    exit 1
+  fi
+fi
+
+STAMP="$(ts)"
+if [ "$PROMOTE" = "true" ]; then
+  FILE="$MEM_DIR/progress.md"
+else
+  FILE="$CACHE_FILE"
+  mkdir -p "$(dirname "$FILE")"
+  touch "$FILE"
+fi
+
+{
+  echo "- 时间：$STAMP"
+  echo "  - 摘要：$SUMMARY"
+  echo "  - Codex 会话：$SESSION_PATH"
+  if [ -n "$NEXT" ]; then
+    echo "  - 下一步建议：$NEXT"
+  fi
+} >> "$FILE"
+
+if [ "$PROMOTE" = "true" ]; then
+  "$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+  echo "Promoted session log to $FILE (+ refreshed brief.md)"
+else
+  echo "Cached session log to $FILE (not promoted to progress.md)"
+fi

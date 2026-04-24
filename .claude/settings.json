@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh scripts/memory/brief-refresh >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  }
+}

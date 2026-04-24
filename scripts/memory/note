@@ -1,0 +1,65 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/common.sh"
+ensure_files
+PYTHON_BIN=$(python_bin)
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: scripts/memory/note \"message\" [--decision]" >&2
+  exit 1
+fi
+
+MESSAGE="$1"
+MODE="note"
+if [ "${2-}" = "--decision" ]; then MODE="decision"; fi
+
+STAMP="$(ts)"
+FILE="$MEM_DIR/decisions.md"
+
+if [ "$MODE" = "decision" ]; then
+  ENTRY="$(
+    {
+      echo "- 时间：$STAMP"
+      echo "  - 背景："
+      echo "  - 决策：$MESSAGE"
+      echo "  - 备选："
+      echo "  - 理由："
+      echo "  - 影响："
+    } | sed 's/[[:space:]]*$//'
+  )"
+else
+  ENTRY="- $STAMP：$MESSAGE"
+fi
+
+MEM_ENTRY="$ENTRY" "$PYTHON_BIN" - "$FILE" <<'PY'
+import re
+import sys
+import os
+from pathlib import Path
+
+path = Path(sys.argv[1])
+entry = os.environ.get("MEM_ENTRY", "").rstrip("\n")
+text = ""
+if path.exists():
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+lines = text.splitlines()
+insert_at = None
+for i, line in enumerate(lines):
+    if re.match(r"^##\s+记录", line.strip()):
+        insert_at = i + 1
+        break
+
+if insert_at is None:
+    new_text = text.rstrip("\n") + ("\n\n" if text.strip() else "") + entry + "\n"
+else:
+    before = "\n".join(lines[:insert_at]).rstrip("\n")
+    after = "\n".join(lines[insert_at:]).lstrip("\n")
+    new_text = before + "\n\n" + entry + "\n\n" + after + ("\n" if after else "")
+
+path.write_text(new_text, encoding="utf-8")
+PY
+
+"$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+echo "Updated $FILE (+ refreshed brief.md)"
