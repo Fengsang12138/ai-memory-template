@@ -9,6 +9,7 @@
 - 动手前：读 [`memory/brief.md`](./memory/brief.md)；需要细节再读 `activeContext.md` / `tasks.md`。
 - 动手后（本 turn 有实质产出时）：按协议第 2 节写 `progress.md` / `decisions.md` / `activeContext.md` / `tasks.md`，最后跑 `scripts/memory/brief-refresh`。
 - 纯问答、查询类 turn **不写回**，避免污染流水账。
+- **写之前先看协议 §2.1「量化写入规则」**：progress 单条 ≤4 行；决策先判断轻/重档，轻决策走 `scripts/memory/note`（单行），重决策才用五段式；多决策合并一个时间戳块；废弃任务进 archive，不留墓碑。
 
 ## Claude Code 特有约定
 
