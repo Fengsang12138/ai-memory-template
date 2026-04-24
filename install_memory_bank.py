@@ -348,12 +348,15 @@ def main() -> int:
     parser.add_argument(
         "--agent",
         choices=AGENT_CHOICES,
-        default="both",
+        default=None,
         help=(
             "Which agent entry to install. "
-            "'both' (default) installs AGENTS.md + CLAUDE.md + .claude/settings.json; "
+            "'both' installs AGENTS.md + CLAUDE.md + .claude/settings.json; "
             "'codex' installs only AGENTS.md; "
             "'claude' installs only CLAUDE.md + .claude/settings.json. "
+            "Default depends on mode: fresh install defaults to 'both' (opt into modern dual-agent setup); "
+            "--upgrade-infra defaults to 'codex' so an upgrade does not silently add a Claude Stop hook "
+            "to a project that never asked for one. Pass --agent explicitly to override. "
             "memory/ and scripts/memory/ are always installed because they are agent-neutral."
         ),
     )
@@ -364,6 +367,16 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # Resolve the agent default based on mode. Upgrades stay conservative to
+    # avoid surprising an existing project with a new .claude/settings.json
+    # Stop hook; fresh installs get the full dual-agent setup by default.
+    if args.agent is None:
+        resolved_agent = "codex" if args.upgrade_infra else "both"
+        default_note = " (default for --upgrade-infra)" if args.upgrade_infra else " (default for fresh install)"
+    else:
+        resolved_agent = args.agent
+        default_note = " (explicit)"
+
     dest_root = Path(args.target).resolve()
     if not args.dry_run:
         ensure_dir(dest_root)
@@ -371,11 +384,11 @@ def main() -> int:
         dest_root,
         upgrade_infra=args.upgrade_infra,
         dry_run=args.dry_run,
-        agent=args.agent,
+        agent=resolved_agent,
     )
     print_report(report)
     action = "Would install" if args.dry_run else "Installed"
-    print(f"{action} memory bank template into: {dest_root} (agent={args.agent})")
+    print(f"{action} memory bank template into: {dest_root} (agent={resolved_agent}{default_note})")
     return 0
 
 

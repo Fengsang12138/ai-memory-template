@@ -11,6 +11,14 @@ def utc_now_ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+_LAST_UPDATED_RE = re.compile(r"^last_updated:\s*.*$", re.M)
+
+
+def strip_timestamp(text: str) -> str:
+    """Remove the last_updated line so we can compare content ignoring the timestamp."""
+    return _LAST_UPDATED_RE.sub("last_updated: <stripped>", text)
+
+
 def repo_root_from_script(script_path: Path) -> Path:
     return script_path.resolve().parents[2]
 
@@ -342,6 +350,14 @@ def main() -> int:
         progress_limit=progress_limit,
         decisions_limit=decisions_limit,
     )
+
+    # Skip writing when only the timestamp would change. This keeps the file out
+    # of `git status` noise when a Stop-hook refresh produces no substantive
+    # changes, and is safe because a stale timestamp is still more accurate than
+    # a spurious "updated now" one when nothing actually changed.
+    if brief_existing and strip_timestamp(brief_existing) == strip_timestamp(brief):
+        return 0
+
     write_text(brief_path, brief)
     return 0
 

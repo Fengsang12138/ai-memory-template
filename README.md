@@ -74,6 +74,35 @@ python3 install_memory_bank.py /path/to/your-project --upgrade-infra
 - `--upgrade-infra` 只刷新 `scripts/memory/`、VS Code tasks、ignore 规则，不覆盖 `AGENTS.md`、`CLAUDE.md`、`memory.md` 或 `memory/*.md`
 - `--dry-run` 只输出将执行的动作，不写文件
 
+### `--agent` 默认值与升级安全
+
+`--agent` 的默认值**依赖当前模式**，目的是不让升级动作意外往已有项目塞 Claude 配置：
+
+| 场景 | `--agent` 默认 | 理由 |
+|---|---|---|
+| 首次安装（无 `--upgrade-infra`） | `both` | 新项目拥抱双 agent 现代化默认 |
+| 升级（带 `--upgrade-infra`） | `codex` | 只刷 Codex 那侧 + 共享脚本，不碰 `.claude/settings.json` |
+
+要在升级时**同时**刷新 Claude 那一套（或给本来没用过 Claude 的项目首次接上 Claude），必须**显式传 `--agent`**：`--agent both` 或 `--agent claude`。
+
+### 升级已有项目的安全姿势
+
+对一个已经在用本模板的 Codex 项目，推荐按下列顺序推进，避免 Claude 运行配置悄悄上车：
+
+```bash
+# 1. 先 dry-run 看会改什么
+python3 install_memory_bank.py /path/to/existing-project --upgrade-infra --dry-run
+
+# 2. 确认 diff 可接受后，只升级共享基础设施（不碰 Claude）
+python3 install_memory_bank.py /path/to/existing-project --upgrade-infra
+
+# 3. 想给这个项目接上 Claude 时，再单独显式跑一次
+python3 install_memory_bank.py /path/to/existing-project --agent claude --dry-run
+python3 install_memory_bank.py /path/to/existing-project --agent claude
+```
+
+升级永远是幂等的：`scripts/memory/brief-refresh` 在 `brief.md` 实质内容没变时不重写文件（避免 git status 噪声），`.gitignore` / `.gitattributes` / `.vscode/tasks.json` / `.claude/settings.json` 按签名去重合并，同一命令重复跑不会叠加。
+
 ## 手工复制
 
 也可以把下面这些文件直接拷到你的项目根目录：
