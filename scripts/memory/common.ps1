@@ -27,7 +27,7 @@ function Ensure-Files {
     New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
   }
 
-  foreach ($name in @("brief.md", "activeContext.md", "tasks.md", "decisions.md", "progress.md", "glossary.md")) {
+  foreach ($name in @("brief.md", "handoff.md", "activeContext.md", "tasks.md", "decisions.md", "progress.md", "glossary.md")) {
     $path = Join-Path $MemDir $name
     if (-not (Test-Path $path)) {
       New-Item -ItemType File -Path $path -Force | Out-Null

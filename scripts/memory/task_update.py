@@ -110,7 +110,7 @@ def main() -> int:
     add_parser.add_argument("title", nargs="?", help="Task title.")
     add_parser.add_argument("--title", dest="title_option", help="Task title.")
     add_parser.add_argument("--priority", default="med", help="Task priority.")
-    add_parser.add_argument("--owner", default="unassigned", help="Task owner.")
+    add_parser.add_argument("--owner", default="shared", help="Task owner. Prefer human/team/shared; keep model routing in memory/handoff.md.")
 
     update_parser = subparsers.add_parser("update", help="Update a task status by id.")
     update_parser.add_argument("task_id", nargs="?", help="Task id.")

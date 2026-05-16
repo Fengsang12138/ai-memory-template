@@ -1,0 +1,115 @@
+#!/usr/bin/env sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/common.sh"
+ensure_files
+PYTHON_BIN=$(python_bin)
+
+usage() {
+  echo "Usage: scripts/memory/handoff [--agent name] [--next-agent name] [--mode mode] --goal text --next text [--dirty files] [--do-not-touch items] [--questions text] [--notes text] [--confidence low|med|high]" >&2
+}
+
+AGENT="unassigned"
+NEXT_AGENT="unassigned"
+MODE="handoff"
+GOAL=""
+NEXT_ACTION=""
+DIRTY_FILES=""
+DO_NOT_TOUCH=""
+OPEN_QUESTIONS=""
+NOTES=""
+CONFIDENCE="med"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --agent) AGENT="${2-}"; shift 2;;
+    --next-agent) NEXT_AGENT="${2-}"; shift 2;;
+    --mode) MODE="${2-}"; shift 2;;
+    --goal) GOAL="${2-}"; shift 2;;
+    --next) NEXT_ACTION="${2-}"; shift 2;;
+    --dirty) DIRTY_FILES="${2-}"; shift 2;;
+    --do-not-touch) DO_NOT_TOUCH="${2-}"; shift 2;;
+    --questions) OPEN_QUESTIONS="${2-}"; shift 2;;
+    --notes) NOTES="${2-}"; shift 2;;
+    --confidence) CONFIDENCE="${2-}"; shift 2;;
+    -h|--help) usage; exit 0;;
+    *) echo "Unknown arg: $1" >&2; usage; exit 1;;
+  esac
+done
+
+if [ -z "$GOAL" ] || [ -z "$NEXT_ACTION" ]; then
+  usage
+  exit 1
+fi
+
+FILE="$MEM_DIR/handoff.md"
+STAMP="$(ts)"
+
+HANDOFF_UPDATED="$STAMP" \
+HANDOFF_AGENT="$AGENT" \
+HANDOFF_NEXT_AGENT="$NEXT_AGENT" \
+HANDOFF_MODE="$MODE" \
+HANDOFF_GOAL="$GOAL" \
+HANDOFF_NEXT_ACTION="$NEXT_ACTION" \
+HANDOFF_DIRTY_FILES="$DIRTY_FILES" \
+HANDOFF_DO_NOT_TOUCH="$DO_NOT_TOUCH" \
+HANDOFF_OPEN_QUESTIONS="$OPEN_QUESTIONS" \
+HANDOFF_NOTES="$NOTES" \
+HANDOFF_CONFIDENCE="$CONFIDENCE" \
+"$PYTHON_BIN" - "$FILE" <<'PY'
+from __future__ import annotations
+
+import os
+import re
+import sys
+from pathlib import Path
+
+
+def value(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip()
+
+
+def bullets(text: str, empty: str = "（无）") -> str:
+    if not text.strip():
+        return f"- {empty}"
+    parts = [part.strip() for part in text.replace("\r\n", "\n").split("\n") if part.strip()]
+    if len(parts) == 1:
+        parts = [part.strip() for part in re.split(r";\s+", parts[0]) if part.strip()]
+    return "\n".join(f"- {part}" for part in parts)
+
+
+path = Path(sys.argv[1])
+path.parent.mkdir(parents=True, exist_ok=True)
+text = f"""# Handoff Snapshot — 当前交接快照
+
+updated: {value("HANDOFF_UPDATED")}
+last_agent: {value("HANDOFF_AGENT", "unassigned")}
+suggested_next_agent: {value("HANDOFF_NEXT_AGENT", "unassigned")}
+mode: {value("HANDOFF_MODE", "handoff")}
+confidence: {value("HANDOFF_CONFIDENCE", "med")}
+
+## Current Goal
+{bullets(value("HANDOFF_GOAL"), "（未填写）")}
+
+## Next Action
+{bullets(value("HANDOFF_NEXT_ACTION"), "（未填写）")}
+
+## Dirty Files
+{bullets(value("HANDOFF_DIRTY_FILES"))}
+
+## Do Not Touch
+{bullets(value("HANDOFF_DO_NOT_TOUCH"))}
+
+## Open Questions
+{bullets(value("HANDOFF_OPEN_QUESTIONS"))}
+
+## Notes
+{bullets(value("HANDOFF_NOTES"))}
+- 本文件是短交接层，不是历史记录；每次实质交接都可以整体覆盖。
+- 长期事实进 `brief.md` / `activeContext.md`，历史进 `progress.md` / `decisions.md`。
+"""
+path.write_text(text, encoding="utf-8")
+PY
+
+"$SCRIPT_DIR/brief-refresh" >/dev/null 2>&1 || true
+echo "Updated $FILE (+ refreshed brief.md)"

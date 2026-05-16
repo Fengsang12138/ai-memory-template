@@ -2,7 +2,7 @@ param(
   [Parameter(Position = 0)]
   [string]$Title = "",
   [string]$Priority = "med",
-  [string]$Owner = "unassigned",
+  [string]$Owner = "shared",
   [string]$Id = "",
   [ValidateSet("todo", "in-progress", "done", "blocked")]
   [string]$Status = ""

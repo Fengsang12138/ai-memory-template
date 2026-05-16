@@ -24,7 +24,7 @@ python_bin() {
 ensure_files() {
   mkdir -p "$MEM_DIR"
   mkdir -p "$MEM_DIR/archive"
-  for f in brief.md activeContext.md tasks.md decisions.md progress.md glossary.md; do
+  for f in brief.md handoff.md activeContext.md tasks.md decisions.md progress.md glossary.md; do
     if [ ! -f "$MEM_DIR/$f" ]; then
       touch "$MEM_DIR/$f"
     fi

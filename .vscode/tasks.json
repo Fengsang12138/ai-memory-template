@@ -68,6 +68,69 @@
       "default": ""
     },
     {
+      "id": "memory.handoff.agent",
+      "type": "promptString",
+      "description": "Last/current agent",
+      "default": "unassigned"
+    },
+    {
+      "id": "memory.handoff.next_agent",
+      "type": "promptString",
+      "description": "Suggested next agent",
+      "default": "unassigned"
+    },
+    {
+      "id": "memory.handoff.mode",
+      "type": "promptString",
+      "description": "Handoff mode",
+      "default": "handoff"
+    },
+    {
+      "id": "memory.handoff.goal",
+      "type": "promptString",
+      "description": "Current goal"
+    },
+    {
+      "id": "memory.handoff.next",
+      "type": "promptString",
+      "description": "Next action"
+    },
+    {
+      "id": "memory.handoff.dirty",
+      "type": "promptString",
+      "description": "Dirty files or worktree notes",
+      "default": ""
+    },
+    {
+      "id": "memory.handoff.do_not_touch",
+      "type": "promptString",
+      "description": "Do-not-touch notes",
+      "default": ""
+    },
+    {
+      "id": "memory.handoff.questions",
+      "type": "promptString",
+      "description": "Open questions",
+      "default": ""
+    },
+    {
+      "id": "memory.handoff.notes",
+      "type": "promptString",
+      "description": "Extra handoff notes",
+      "default": ""
+    },
+    {
+      "id": "memory.handoff.confidence",
+      "type": "pickString",
+      "description": "Handoff confidence",
+      "options": [
+        "low",
+        "med",
+        "high"
+      ],
+      "default": "med"
+    },
+    {
       "id": "memory.session.summary",
       "type": "promptString",
       "description": "Session summary (cached by default, not formal progress)"
@@ -245,6 +308,64 @@
           "${input:memory.progress.files}",
           "-Next",
           "${input:memory.progress.next}"
+        ]
+      }
+    },
+    {
+      "label": "Memory: Update Handoff",
+      "type": "shell",
+      "command": "scripts/memory/handoff",
+      "args": [
+        "--agent",
+        "${input:memory.handoff.agent}",
+        "--next-agent",
+        "${input:memory.handoff.next_agent}",
+        "--mode",
+        "${input:memory.handoff.mode}",
+        "--goal",
+        "${input:memory.handoff.goal}",
+        "--next",
+        "${input:memory.handoff.next}",
+        "--dirty",
+        "${input:memory.handoff.dirty}",
+        "--do-not-touch",
+        "${input:memory.handoff.do_not_touch}",
+        "--questions",
+        "${input:memory.handoff.questions}",
+        "--notes",
+        "${input:memory.handoff.notes}",
+        "--confidence",
+        "${input:memory.handoff.confidence}"
+      ],
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/memory/handoff.ps1",
+          "-Agent",
+          "${input:memory.handoff.agent}",
+          "-NextAgent",
+          "${input:memory.handoff.next_agent}",
+          "-Mode",
+          "${input:memory.handoff.mode}",
+          "-Goal",
+          "${input:memory.handoff.goal}",
+          "-Next",
+          "${input:memory.handoff.next}",
+          "-Dirty",
+          "${input:memory.handoff.dirty}",
+          "-DoNotTouch",
+          "${input:memory.handoff.do_not_touch}",
+          "-Questions",
+          "${input:memory.handoff.questions}",
+          "-Notes",
+          "${input:memory.handoff.notes}",
+          "-Confidence",
+          "${input:memory.handoff.confidence}"
         ]
       }
     },

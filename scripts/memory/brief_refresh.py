@@ -43,6 +43,7 @@ def ensure_memory_files(mem_dir: Path) -> None:
     (mem_dir / "archive").mkdir(parents=True, exist_ok=True)
     for name in [
         "brief.md",
+        "handoff.md",
         "activeContext.md",
         "tasks.md",
         "decisions.md",
@@ -105,6 +106,79 @@ def extract_tasks(tasks_md: str, max_items: int) -> list[str]:
         if len(out) >= max_items:
             break
     return out
+
+
+_META_RE = re.compile(r"^(?P<key>[a-zA-Z_][a-zA-Z0-9_-]*):\s*(?P<value>.*)$")
+_EMPTY_VALUES = {"", "（无）", "（未填写）", "(none)", "none", "n/a", "N/A"}
+
+
+def extract_metadata(markdown: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for line in markdown.splitlines():
+        if line.startswith("## "):
+            break
+        match = _META_RE.match(line.strip())
+        if match:
+            out[match.group("key")] = match.group("value").strip()
+    return out
+
+
+def meaningful_bullets(markdown: str, heading: str, max_items: int, max_chars: int) -> list[str]:
+    body = extract_heading_body(markdown, heading)
+    if not body:
+        return []
+    out: list[str] = []
+    for line in body.splitlines():
+        line = line.strip()
+        if not line.startswith("- "):
+            continue
+        value = line[2:].strip()
+        if value in _EMPTY_VALUES or any(value.startswith(marker) for marker in ("（无）", "（未填写）")):
+            continue
+        if value.startswith("本文件是短交接层"):
+            continue
+        if value.startswith("长期事实进 "):
+            continue
+        out.append(_truncate(value, max_chars))
+        if len(out) >= max_items:
+            break
+    return out
+
+
+def collect_handoff(handoff_md: str) -> list[str]:
+    if not handoff_md.strip():
+        return []
+    meta = extract_metadata(handoff_md)
+    out: list[str] = []
+
+    agent_bits = []
+    last_agent = meta.get("last_agent", "").strip()
+    next_agent = meta.get("suggested_next_agent", "").strip()
+    mode = meta.get("mode", "").strip()
+    confidence = meta.get("confidence", "").strip()
+    if last_agent and last_agent not in {"unassigned", "unknown"}:
+        agent_bits.append(f"last={last_agent}")
+    if next_agent and next_agent not in {"unassigned", "unknown"}:
+        agent_bits.append(f"next={next_agent}")
+    if mode and mode != "idle":
+        agent_bits.append(f"mode={mode}")
+    if confidence and confidence != "low":
+        agent_bits.append(f"confidence={confidence}")
+    if agent_bits:
+        out.append("- " + ", ".join(agent_bits))
+
+    for heading, label, max_items in [
+        ("Current Goal", "goal", 1),
+        ("Next Action", "next", 1),
+        ("Dirty Files", "dirty", 3),
+        ("Do Not Touch", "do-not-touch", 3),
+        ("Open Questions", "questions", 3),
+    ]:
+        values = meaningful_bullets(handoff_md, heading, max_items=max_items, max_chars=120)
+        if values:
+            out.append(f"- {label}: {_truncate('; '.join(values), 180)}")
+
+    return out[:6]
 
 
 @dataclass(frozen=True)
@@ -221,9 +295,14 @@ def extract_manual_focus(brief_md: str, max_items: int) -> str | None:
     return limit_section(brief_md, "当前焦点（TL;DR）", max_items=max_items, max_chars=180)
 
 
+def extract_active_focus(active_context_md: str, max_items: int) -> str | None:
+    return limit_section(active_context_md, "Active Focus", max_items=max_items, max_chars=180)
+
+
 def build_brief(
     now_ts: str,
     manual_focus: str | None,
+    handoff: list[str],
     entry_points: list[str],
     scope_lines: list[str],
     tasks: list[str],
@@ -239,7 +318,7 @@ def build_brief(
     parts.append(f"last_updated: {now_ts}")
     parts.append("")
     parts.append(
-        "> 默认只加载本文件 + `memory/activeContext.md` + `memory/tasks.md`。\n"
+        "> 默认加载本文件；跨 agent 接手时再读 `memory/handoff.md` + `memory/activeContext.md` + `memory/tasks.md`。\n"
         "> 需要历史细节时，优先 `rg` 在 `memory/decisions.md` / `memory/progress.md` / `memory/archive/` 内检索，避免整文件全读。"
     )
     parts.append("")
@@ -249,6 +328,13 @@ def build_brief(
         parts.append(manual_focus.rstrip())
     else:
         parts.append("- （手工维护）一句话说明当前目标/约束/范围。")
+    parts.append("")
+
+    parts.append("## 当前交接（Handoff）")
+    if handoff:
+        parts.extend(handoff)
+    else:
+        parts.append("- （无）")
     parts.append("")
 
     parts.append("## 常用入口")
@@ -289,10 +375,11 @@ def build_brief(
     parts.append("")
 
     parts.append("## 维护约定（省 token）")
-    parts.append("- 本文件只保留短摘要；长历史入口在 `memory/progress.md` / `memory/decisions.md` / `memory/archive/`。")
+    parts.append("- 本文件只保留短摘要；即时交接入口是 `memory/handoff.md`。")
+    parts.append("- 长历史入口在 `memory/progress.md` / `memory/decisions.md` / `memory/archive/`。")
     parts.append("- 每次任务结束：正式产出写 `progress.md`；重要取舍写 `decisions.md`；然后刷新 `brief.md`。")
     parts.append("- 原始或 session-only 会话记录默认留在本地或 `memory/.session-cache.md`，不要自动塞进正式进展。")
-    parts.append("- 脚本：`scripts/memory/brief-refresh`（刷新本文件）、`scripts/memory/prune`（归档旧记录）。")
+    parts.append("- 脚本：`scripts/memory/handoff`（更新交接）、`scripts/memory/brief-refresh`（刷新本文件）、`scripts/memory/prune`（归档旧记录）。")
     parts.append("")
 
     return "\n".join(parts)
@@ -311,6 +398,7 @@ def main() -> int:
     ensure_memory_files(mem_dir)
 
     brief_path = mem_dir / "brief.md"
+    handoff_path = mem_dir / "handoff.md"
     active_context_path = mem_dir / "activeContext.md"
     tasks_path = mem_dir / "tasks.md"
     decisions_path = mem_dir / "decisions.md"
@@ -323,9 +411,12 @@ def main() -> int:
     tasks_limit = max(args.tasks, 0)
     progress_limit = max(args.progress, 0)
     decisions_limit = max(args.decisions, 0)
-    manual_focus = extract_manual_focus(brief_existing, max_items=focus_limit)
+    handoff = collect_handoff(read_text(handoff_path))
 
     active_context = read_text(active_context_path)
+    manual_focus = extract_active_focus(active_context, max_items=focus_limit) or extract_manual_focus(
+        brief_existing, max_items=focus_limit
+    )
     entry_points = extract_bullets(active_context, "Entry Points", max_items=8)
     scope_lines = extract_bullets(active_context, "Scope", max_items=8)
 
@@ -341,6 +432,7 @@ def main() -> int:
     brief = build_brief(
         now_ts=now_ts,
         manual_focus=manual_focus,
+        handoff=handoff,
         entry_points=entry_points,
         scope_lines=scope_lines,
         tasks=active_tasks,

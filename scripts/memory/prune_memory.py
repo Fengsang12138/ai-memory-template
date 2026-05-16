@@ -122,16 +122,21 @@ def prune_markdown(
     if not original.strip():
         return 0, 0, None
 
-    archive_path = unique_archive_path(archive_dir, src_path.stem)
     preamble_lines, entry_lines = split_preamble_and_entries(original)
     entries = parse_entries(entry_lines)
     entries.sort(key=lambda e: e.ts, reverse=True)
 
-    kept = entries[: max(keep, 0)]
+    keep_count = max(keep, 0)
+    kept = entries[:keep_count]
+
+    if not entries or len(entries) <= keep_count:
+        return len(entries), len(kept), None
 
     if dry_run:
+        archive_path = unique_archive_path(archive_dir, src_path.stem)
         return len(entries), len(kept), archive_path
 
+    archive_path = unique_archive_path(archive_dir, src_path.stem)
     write_text(archive_path, original)
 
     archive_ref = f"memory/archive/{archive_path.name}"
@@ -179,14 +184,16 @@ def main() -> int:
         if not path.exists():
             continue
         if args.dry_run:
-            print(f"[dry-run] {path}: entries={total}, keep={kept}, archive={archive_path}")
+            archive_display = archive_path if archive_path else "(none)"
+            print(f"[dry-run] {path}: entries={total}, keep={kept}, archive={archive_display}")
         else:
             ts = utc_now_ts()
-            archive_display = archive_path.name if archive_path else "(none)"
-            print(f"{ts} pruned {path.name}: entries={total} -> keep={kept}; archived to {archive_display}")
+            if archive_path is None:
+                print(f"{ts} no pruning needed for {path.name}: entries={total}, keep={kept}")
+            else:
+                print(f"{ts} pruned {path.name}: entries={total} -> keep={kept}; archived to {archive_path.name}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

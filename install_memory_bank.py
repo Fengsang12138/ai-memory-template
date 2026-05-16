@@ -16,6 +16,8 @@ AGENTS_SRC = TEMPLATE_ROOT / "AGENTS.md"
 CLAUDE_SRC = TEMPLATE_ROOT / "CLAUDE.md"
 CLAUDE_SETTINGS_SRC = TEMPLATE_ROOT / ".claude" / "settings.json"
 MEMORY_ENTRY_SRC = TEMPLATE_ROOT / "memory.md"
+PROTOCOL_SRC = MEMORY_SRC / "AGENT_PROTOCOL.md"
+MEMORY_README_SRC = MEMORY_SRC / "README.md"
 GITIGNORE_SRC = TEMPLATE_ROOT / ".gitignore"
 GITATTRIBUTES_SRC = TEMPLATE_ROOT / ".gitattributes"
 SKIP_NAMES = {"__pycache__", ".DS_Store", "Thumbs.db"}
@@ -57,13 +59,17 @@ def copy_tree(
     dry_run: bool,
     report: InstallReport,
     root: Path,
+    skip_relative_paths: set[str] | None = None,
 ) -> None:
     if not src.exists():
         return
+    skip_relative_paths = skip_relative_paths or set()
     for item in src.rglob("*"):
         if should_skip_source(item.relative_to(src)):
             continue
         rel = item.relative_to(src)
+        if rel.as_posix() in skip_relative_paths:
+            continue
         target = dest / rel
         if item.is_dir():
             if not dry_run:
@@ -238,7 +244,28 @@ def install(
         dry_run=dry_run,
         report=report,
         root=dest_root,
+        skip_relative_paths={"AGENT_PROTOCOL.md", "README.md"} if upgrade_infra else None,
     )
+    if upgrade_infra:
+        # Protocol docs are template-managed infrastructure. Project-specific
+        # memory state such as brief/handoff/activeContext/tasks/progress stays
+        # protected by the non-overwriting copy_tree call above.
+        copy_file(
+            PROTOCOL_SRC,
+            dest_root / "memory" / "AGENT_PROTOCOL.md",
+            overwrite=True,
+            dry_run=dry_run,
+            report=report,
+            root=dest_root,
+        )
+        copy_file(
+            MEMORY_README_SRC,
+            dest_root / "memory" / "README.md",
+            overwrite=True,
+            dry_run=dry_run,
+            report=report,
+            root=dest_root,
+        )
     copy_tree(
         SCRIPTS_SRC,
         dest_root / "scripts" / "memory",
@@ -341,8 +368,9 @@ def main() -> int:
         "--upgrade-infra",
         action="store_true",
         help=(
-            "Refresh template-managed infrastructure files (scripts/memory/, VS Code tasks, ignore rules) "
-            "without overwriting AGENTS.md, CLAUDE.md, memory.md, or project memory/*.md content."
+            "Refresh template-managed infrastructure files (memory/AGENT_PROTOCOL.md, memory/README.md, "
+            "scripts/memory/, VS Code tasks, ignore rules) without overwriting AGENTS.md, CLAUDE.md, "
+            "memory.md, or project-specific memory content."
         ),
     )
     parser.add_argument(
@@ -354,9 +382,9 @@ def main() -> int:
             "'both' installs AGENTS.md + CLAUDE.md + .claude/settings.json; "
             "'codex' installs only AGENTS.md; "
             "'claude' installs only CLAUDE.md + .claude/settings.json. "
-            "Default depends on mode: fresh install defaults to 'both' (opt into modern dual-agent setup); "
-            "--upgrade-infra defaults to 'codex' so an upgrade does not silently add a Claude Stop hook "
-            "to a project that never asked for one. Pass --agent explicitly to override. "
+            "Default is 'codex' for both fresh installs and --upgrade-infra. "
+            "Pass --agent both explicitly for the Codex + Claude collaboration setup, "
+            "or --agent claude to add only the Claude entry and Stop hook. "
             "memory/ and scripts/memory/ are always installed because they are agent-neutral."
         ),
     )
@@ -367,11 +395,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # Resolve the agent default based on mode. Upgrades stay conservative to
-    # avoid surprising an existing project with a new .claude/settings.json
-    # Stop hook; fresh installs get the full dual-agent setup by default.
+    # Codex-only is the conservative default for both fresh installs and
+    # upgrades. Claude support stays available through an explicit --agent.
     if args.agent is None:
-        resolved_agent = "codex" if args.upgrade_infra else "both"
+        resolved_agent = "codex"
         default_note = " (default for --upgrade-infra)" if args.upgrade_infra else " (default for fresh install)"
     else:
         resolved_agent = args.agent

@@ -38,7 +38,7 @@ fi
 
 TITLE="$1"; shift || true
 PRIO="med"
-OWNER="unassigned"
+OWNER="shared"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
